@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+
+  adguard:
+    image: adguard/adguardhome:latest
+    container_name: adguard
+    volumes:
+      - adguard_conf:/opt/adguardhome/conf
+      - adguard_work:/opt/adguardhome/work
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "3000:3000"   # Web UI
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+
+  adguard-exporter:
+    image: ebrianne/adguard-exporter:latest
+    container_name: adguard-exporter
+    environment:
+      - ADGUARD_URL=http://adguard:3000
+      - ADGUARD_USERNAME=admin
+      - ADGUARD_PASSWORD=jouwWachtwoord
+      - ADGUARD_EXPORT_CLIENTS=true
+      - ADGUARD_REFRESH=15
+    ports:
+      - "9617:9617"
+    depends_on:
+      - adguard
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: unless-stopped
+
+volumes:
+  adguard_conf:
+  adguard_work:
+  prometheus_data:
+  grafana_data:
